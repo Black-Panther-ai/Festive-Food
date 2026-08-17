@@ -417,7 +417,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                   </div>
 
                   <div className="absolute bottom-3 right-3 bg-stone-950/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-white font-serif font-bold text-sm">
-                    鈧箋prod.price} <span className="text-[10px] font-sans font-normal text-stone-300">/ {prod.unit}</span>
+                    ₹{prod.price} <span className="text-[10px] font-sans font-normal text-stone-300">/ {prod.unit}</span>
                   </div>
                 </div>
 
