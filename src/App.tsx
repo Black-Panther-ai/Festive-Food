@@ -51,7 +51,33 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const pathName = currentPath.split('?')[0];
+  const getCleanPath = (path: string) => {
+    let clean = path || '/';
+    if (clean.includes('#')) {
+      clean = clean.split('#')[1] || '/';
+    }
+    const [pathPart, queryPart] = clean.split('?');
+    let normalized = (pathPart || '/').replace(/\/+/g, '/').toLowerCase();
+    
+    // Normalize trailing slash (unless root '/')
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+
+    // Strip common GitHub Pages base folder prefix if present
+    const knownRoutes = ['products', 'preorder', 'pre-order', 'order-success', 'account', 'track-order', 'how-it-works', 'about', 'contact', 'terms', 'privacy', 'admin', 'cart', 'checkout'];
+    for (const route of knownRoutes) {
+      const idx = normalized.indexOf(`/${route}`);
+      if (idx > 0) {
+        normalized = normalized.substring(idx);
+        break;
+      }
+    }
+
+    return { pathName: normalized, queryString: queryPart || '' };
+  };
+
+  const { pathName } = getCleanPath(currentPath);
 
   // Protect Admin Routes via Clerk Session & Server-Side Admin Role Verification
   useEffect(() => {
@@ -148,13 +174,26 @@ function AppContent() {
 
   if (pathName === '/' || pathName === '') {
     renderPage = <HomePage navigate={navigate} />;
+  } else if (
+    pathName === '/preorder' ||
+    pathName === '/pre-order' ||
+    pathName === '/cart' ||
+    pathName === '/checkout' ||
+    pathName === '/products/preorder' ||
+    pathName === '/products/pre-order'
+  ) {
+    renderPage = <PreOrderPage navigate={navigate} />;
   } else if (pathName === '/products') {
     renderPage = <ProductsPage navigate={navigate} />;
   } else if (pathName.startsWith('/products/')) {
-    const slug = pathName.replace('/products/', '');
-    renderPage = <ProductDetailPage navigate={navigate} slug={slug} />;
-  } else if (pathName === '/preorder') {
-    renderPage = <PreOrderPage navigate={navigate} />;
+    const rawSlug = pathName.replace('/products/', '').trim();
+    if (rawSlug === 'preorder' || rawSlug === 'pre-order' || rawSlug === 'cart' || rawSlug === 'checkout') {
+      renderPage = <PreOrderPage navigate={navigate} />;
+    } else if (!rawSlug || rawSlug === 'undefined' || rawSlug === 'null') {
+      renderPage = <ProductsPage navigate={navigate} />;
+    } else {
+      renderPage = <ProductDetailPage navigate={navigate} slug={rawSlug} />;
+    }
   } else if (pathName.startsWith('/order-success')) {
     const parts = pathName.split('/');
     const urlParams = new URLSearchParams(window.location.search);

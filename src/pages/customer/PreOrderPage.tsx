@@ -20,13 +20,14 @@ import React, { useEffect, useState } from 'react';
 import { useCustomerAuth } from '../../context/ClerkWrapper';
 import { useCart } from '../../context/CartContext';
 import { DeliverySlot, Product } from '../../types';
+import { productService } from '../../services/productService';
 
 interface PreOrderPageProps {
   navigate: (path: string) => void;
 }
 
 export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
-  const { items, updateQuantity, removeItem, clearCart, totalAmount } = useCart();
+  const { items, addItem, updateQuantity, removeItem, clearCart, totalAmount } = useCart();
   const { isSignedIn, user, clerkUserId } = useCustomerAuth();
 
   // Form State
@@ -56,27 +57,38 @@ export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Fetch delivery slots based on selected city
+  // Check URL params for direct product addition to cart (e.g. ?productId=... or ?slug=...)
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetProductQuery = params.get('productId') || params.get('slug') || params.get('product') || params.get('id');
+    if (targetProductQuery) {
+      productService.getProductBySlugOrId(targetProductQuery).then((matched) => {
+        if (matched) {
+          const exists = items.some((i) => i.product.id === matched.id);
+          if (!exists) {
+            addItem(matched, 1);
+          }
+        }
+      });
+    }
+  }, []);
+
+  // Fetch delivery slots & products based on selected city
+  useEffect(() => {
+    let isMounted = true;
     const fetchSlotsAndProds = async () => {
       try {
-        const [slotsRes, prodsRes] = await Promise.all([
-          fetch(`/api/delivery-slots?city=${city}`),
-          fetch('/api/products'),
+        const [slots, prods] = await Promise.all([
+          productService.getDeliverySlots(city),
+          productService.getProducts(),
         ]);
 
-        if (slotsRes.ok) {
-          const sData = await slotsRes.json();
-          const slots: DeliverySlot[] = sData.data || [];
+        if (isMounted) {
           setDeliverySlots(slots);
           if (slots.length > 0 && !selectedSlotId) {
             setSelectedSlotId(slots[0].id);
           }
-        }
-
-        if (prodsRes.ok) {
-          const pData = await prodsRes.json();
-          setAllProducts(pData.data || []);
+          setAllProducts(prods);
         }
       } catch (err) {
         console.error('Failed to load slots:', err);
@@ -84,6 +96,9 @@ export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
     };
 
     fetchSlotsAndProds();
+    return () => {
+      isMounted = false;
+    };
   }, [city]);
 
   const validatePhone = (p: string) => {
@@ -458,13 +473,42 @@ export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
 
             {/* Items List */}
             {items.length === 0 ? (
-              <div className="text-center py-6 text-stone-400 text-xs">
-                Your pre-order cart is empty.
+              <div className="py-4 text-center space-y-4">
+                <div className="text-stone-500 text-xs">
+                  Your pre-order list is empty. Pick a traditional delicacy below:
+                </div>
+                <div className="space-y-2 text-left">
+                  {allProducts.slice(0, 3).map((prod) => (
+                    <div
+                      key={prod.id}
+                      className="flex items-center justify-between gap-3 p-2 rounded-xl bg-amber-50/50 border border-amber-900/10"
+                    >
+                      <img
+                        src={prod.imageUrl || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80'}
+                        alt={prod.name}
+                        className="w-10 h-10 object-cover rounded-lg shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-stone-900 truncate font-serif">{prod.name}</div>
+                        <div className="text-[11px] text-amber-900 font-semibold">₹{prod.price} / {prod.unit || '500g'}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addItem(prod, 1)}
+                        className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-semibold shrink-0 transition flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add ₹0</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 <button
+                  type="button"
                   onClick={() => navigate('/products')}
-                  className="block mx-auto mt-2 text-amber-700 font-semibold underline"
+                  className="inline-block text-xs font-semibold text-amber-800 hover:underline"
                 >
-                  Browse snacks to add
+                  Browse all festival sweets & snacks →
                 </button>
               </div>
             ) : (

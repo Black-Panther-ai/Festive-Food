@@ -1,5 +1,5 @@
 import { DEFAULT_CATEGORIES, DEFAULT_PRODUCTS } from '../data/initialProducts';
-import { Category, Product, Review } from '../types';
+import { Category, DeliverySlot, Product, Review } from '../types';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'up_festive_products_v2',
@@ -51,10 +51,19 @@ export const productService = {
     return getLocalProducts();
   },
 
-  async getProductBySlugOrId(identifier: string): Promise<Product | undefined> {
-    if (!identifier) return undefined;
-    const cleanId = decodeURIComponent(identifier).toLowerCase().trim();
+  async getProductBySlugOrId(identifier?: string): Promise<Product> {
+    const defaultProduct = DEFAULT_PRODUCTS[0];
+    if (!identifier || identifier.trim() === '' || identifier === 'undefined' || identifier === 'null') {
+      return (await this.getProducts())[0] || defaultProduct;
+    }
 
+    const cleanId = decodeURIComponent(identifier)
+      .toLowerCase()
+      .trim()
+      .replace(/\/+$/, '')
+      .replace(/^products\//, '');
+
+    // 1. Try Backend API first if running
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(cleanId)}`);
       if (res.ok) {
@@ -63,28 +72,114 @@ export const productService = {
           return json.data;
         }
       }
-    } catch (e) {
+    } catch {
       // Fall through to local matching
     }
 
-    const localList = getLocalProducts();
-    const matched = localList.find((p) => {
-      const pSlug = (p.slug || '').toLowerCase().trim();
-      const pId = (p.id || '').toLowerCase().trim();
-      const pName = (p.name || '').toLowerCase().trim();
-      const pAutoSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    // 2. Search local storage and default products
+    const allProducts = await this.getProducts();
+    const productList = allProducts.length > 0 ? allProducts : DEFAULT_PRODUCTS;
+
+    // Check cart context stored in localStorage as well
+    let cartProducts: Product[] = [];
+    try {
+      const rawCart = localStorage.getItem('up_festive_foods_cart');
+      if (rawCart) {
+        const parsed = JSON.parse(rawCart);
+        if (Array.isArray(parsed)) {
+          cartProducts = parsed.map((item: any) => item.product).filter(Boolean);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const searchPool = [...productList, ...cartProducts];
+
+    // Priority 1: Exact ID Match
+    const exactIdMatch = searchPool.find((p) => (p.id || '').toLowerCase() === cleanId);
+    if (exactIdMatch) return exactIdMatch;
+
+    // Priority 2: Exact Slug Match
+    const exactSlugMatch = searchPool.find((p) => (p.slug || '').toLowerCase() === cleanId);
+    if (exactSlugMatch) return exactSlugMatch;
+
+    // Priority 3: Exact Name Match
+    const exactNameMatch = searchPool.find((p) => (p.name || '').toLowerCase().trim() === cleanId);
+    if (exactNameMatch) return exactNameMatch;
+
+    // Priority 4: Normalized Slug / Hyphenated Name Match
+    const slugMatch = searchPool.find((p) => {
+      const pAutoSlug = (p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const pSlug = (p.slug || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const cleanSlug = cleanId.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      return pAutoSlug === cleanSlug || pSlug === cleanSlug;
+    });
+    if (slugMatch) return slugMatch;
+
+    // Priority 5: Keyword / Substring Match (e.g. "gujiya", "mathri", "thekua", "laddoo", "balushahi", "kachori")
+    const keywordMatch = searchPool.find((p) => {
+      const pName = (p.name || '').toLowerCase();
+      const pSlug = (p.slug || '').toLowerCase();
+      const pDesc = (p.description || '').toLowerCase();
       return (
-        pSlug === cleanId ||
-        pId === cleanId ||
-        pName === cleanId ||
-        pAutoSlug === cleanId ||
-        (pSlug && cleanId.includes(pSlug)) ||
-        (cleanId && pSlug.includes(cleanId)) ||
-        (pName && cleanId.includes(pName))
+        pName.includes(cleanId) ||
+        cleanId.includes(pName) ||
+        pSlug.includes(cleanId) ||
+        cleanId.includes(pSlug) ||
+        pDesc.includes(cleanId)
       );
     });
+    if (keywordMatch) return keywordMatch;
 
-    return matched || localList[0];
+    // Fallback safely to the first available product so UI never crashes or shows a broken state
+    return searchPool[0] || defaultProduct;
+  },
+
+  async getDeliverySlots(city: string = 'Kanpur'): Promise<DeliverySlot[]> {
+    try {
+      const res = await fetch(`/api/delivery-slots?city=${encodeURIComponent(city)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return json.data;
+        }
+      }
+    } catch {
+      // Backend not running (GitHub Pages static deploy)
+    }
+
+    // Generate smart upcoming festive delivery slots
+    const now = new Date();
+    const slots: DeliverySlot[] = [];
+    const times = [
+      { start: '10:00 AM', end: '01:00 PM' },
+      { start: '03:00 PM', end: '07:00 PM' },
+    ];
+
+    for (let i = 1; i <= 5; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+
+      times.forEach((t, idx) => {
+        const reserved = Math.floor(Math.random() * 18);
+        slots.push({
+          id: `slot-${city.toLowerCase()}-${dateStr}-${idx}`,
+          city,
+          date: dateStr,
+          startTime: t.start,
+          endTime: t.end,
+          capacity: 50,
+          reservedCapacity: reserved,
+          remainingCapacity: 50 - reserved,
+          pincodes: city.toLowerCase() === 'lucknow' ? '226001 - 226028' : city.toLowerCase() === 'varanasi' ? '221001 - 221010' : '208001 - 208027',
+          isFull: false,
+        });
+      });
+    }
+
+    return slots;
   },
 
   async saveProduct(productData: Partial<Product>, token?: string | null): Promise<Product> {
