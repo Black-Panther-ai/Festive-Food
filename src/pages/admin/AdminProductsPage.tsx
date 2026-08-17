@@ -20,6 +20,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Category, Product, ProductStatus } from '../../types';
 
+const API_URL = 'https://festive-food.onrender.com';
+
 interface AdminProductsPageProps {
   navigate: (path: string) => void;
 }
@@ -74,7 +76,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/products');
+      const res = await fetch(`${API_URL}/api/products`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setProducts(json.data);
@@ -88,7 +90,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch(`${API_URL}/api/categories`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setCategories(json.data);
@@ -209,8 +211,8 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
       };
 
       const url = editingProduct
-        ? `/api/admin/products/${editingProduct.id}`
-        : '/api/admin/products';
+        ? `${API_URL}/api/admin/products/${editingProduct.id}`
+        : `${API_URL}/api/admin/products`;
       const method = editingProduct ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -241,7 +243,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const handleDeleteProduct = async (id: string) => {
     try {
       setSaving(true);
-      const res = await fetch(`/api/admin/products/${id}`, {
+      const res = await fetch(`${API_URL}/api/admin/products/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -342,8 +344,9 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                 {c.name}
               </option>
             ))}
+          
           </select>
-
+         
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -414,7 +417,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                   </div>
 
                   <div className="absolute bottom-3 right-3 bg-stone-950/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-white font-serif font-bold text-sm">
-                    ₹{prod.price} <span className="text-[10px] font-sans font-normal text-stone-300">/ {prod.unit}</span>
+                    鈧箋prod.price} <span className="text-[10px] font-sans font-normal text-stone-300">/ {prod.unit}</span>
                   </div>
                 </div>
 
@@ -497,7 +500,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
               {/* Basic Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block font-semibold text-stone-700 mb-1">
                     Dish Name *
@@ -531,7 +534,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
                 <div>
                   <label className="block font-semibold text-stone-700 mb-1">
-                    Price (INR ₹) *
+                    Price (INR 鈧�) *
                   </label>
                   <input
                     type="number"
@@ -663,7 +666,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
               {/* Ingredients & Allergens */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">
+                     <label className="block font-semibold text-stone-700 mb-1">
                     Ingredients
                   </label>
                   <input
@@ -805,3 +808,4 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
     </div>
   );
 };
+              
