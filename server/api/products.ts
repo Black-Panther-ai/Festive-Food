@@ -21,11 +21,11 @@ productsRouter.get('/products', (req: Request, res: Response) => {
   }
 });
 
-// Public: Get product by slug
+// Public: Get product by slug or id
 productsRouter.get('/products/:slug', (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const product = db.getProductBySlug(slug);
+    const product = db.getProductBySlug(slug) || db.getProductById(slug);
     if (!product) {
       return res.status(404).json({ error: 'Product not found.' });
     }

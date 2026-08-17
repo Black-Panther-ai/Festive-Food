@@ -440,7 +440,22 @@ class DatabaseService {
   }
 
   public getProductBySlug(slug: string): Product | undefined {
-    const product = Array.from(this.products.values()).find((p) => p.slug === slug);
+    if (!slug) return undefined;
+    const cleanSlug = decodeURIComponent(slug).toLowerCase().trim();
+    const product = Array.from(this.products.values()).find((p) => {
+      const pSlug = (p.slug || '').toLowerCase().trim();
+      const pId = (p.id || '').toLowerCase().trim();
+      const pName = (p.name || '').toLowerCase().trim();
+      const pAutoSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      return (
+        pSlug === cleanSlug ||
+        pId === cleanSlug ||
+        pName === cleanSlug ||
+        pAutoSlug === cleanSlug ||
+        cleanSlug.includes(pSlug) ||
+        pSlug.includes(cleanSlug)
+      );
+    });
     if (!product) return undefined;
     return {
       ...product,
@@ -449,7 +464,9 @@ class DatabaseService {
   }
 
   public getProductById(id: string): Product | undefined {
-    const product = this.products.get(id);
+    if (!id) return undefined;
+    const cleanId = id.trim();
+    const product = this.products.get(cleanId) || Array.from(this.products.values()).find(p => p.id === cleanId || p.slug === cleanId);
     if (!product) return undefined;
     return {
       ...product,
@@ -459,7 +476,7 @@ class DatabaseService {
 
   public createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Product {
     const id = `prod-${Date.now()}`;
-    const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slug = data.slug?.trim() || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || id;
     const product: Product = {
       ...data,
       id,
@@ -474,9 +491,12 @@ class DatabaseService {
   public updateProduct(id: string, data: Partial<Product>): Product | undefined {
     const existing = this.products.get(id);
     if (!existing) return undefined;
+    const nameChanged = data.name && data.name !== existing.name;
+    const slug = data.slug || (nameChanged ? data.name!.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : existing.slug);
     const updated: Product = {
       ...existing,
       ...data,
+      slug: slug || existing.slug || id,
       updatedAt: new Date().toISOString(),
     };
     // Auto-update SOLD_OUT status if availableQuantity <= 0

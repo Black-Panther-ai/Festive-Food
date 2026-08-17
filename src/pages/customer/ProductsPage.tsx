@@ -1,6 +1,7 @@
 import { Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ProductCard } from '../../components/customer/ProductCard';
+import { useCart } from '../../context/CartContext';
 import { Category, Product } from '../../types';
 
 interface ProductsPageProps {
@@ -16,6 +17,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   initialCategory = 'all',
   initialCity = 'all',
 }) => {
+  const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
@@ -231,8 +233,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
               <ProductCard
                 key={product.id}
                 product={product}
-                onSelect={(slug) => navigate(`/products/${slug}`)}
-                onPreOrderDirect={() => navigate(`/products/${product.slug}`)}
+                onSelect={(slug) => navigate(`/products/${slug || product.id}`)}
+                onPreOrderDirect={(p) => {
+                  addItem(p, 1);
+                  navigate('/preorder');
+                }}
               />
             ))}
           </div>

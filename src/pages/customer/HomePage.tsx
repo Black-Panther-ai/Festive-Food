@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ProductCard } from '../../components/customer/ProductCard';
+import { useCart } from '../../context/CartContext';
 import { Product, Review } from '../../types';
 
 interface HomePageProps {
@@ -26,6 +27,7 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
+  const { addItem } = useCart();
   const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [thisWeekProducts, setThisWeekProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -239,8 +241,11 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <ProductCard
                 key={product.id}
                 product={product}
-                onSelect={(slug) => navigate(`/products/${slug}`)}
-                onPreOrderDirect={() => navigate(`/products/${product.slug}`)}
+                onSelect={(slug) => navigate(`/products/${slug || product.id}`)}
+                onPreOrderDirect={(p) => {
+                  addItem(p, 1);
+                  navigate('/preorder');
+                }}
               />
             ))}
           </div>
@@ -267,8 +272,11 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <ProductCard
                 key={product.id}
                 product={product}
-                onSelect={(slug) => navigate(`/products/${slug}`)}
-                onPreOrderDirect={() => navigate(`/products/${product.slug}`)}
+                onSelect={(slug) => navigate(`/products/${slug || product.id}`)}
+                onPreOrderDirect={(p) => {
+                  addItem(p, 1);
+                  navigate('/preorder');
+                }}
               />
             ))}
           </div>

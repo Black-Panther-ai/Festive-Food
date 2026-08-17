@@ -27,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onP
   return (
     <div
       id={`product-card-${product.id}`}
-      onClick={() => onSelect(product.slug)}
+      onClick={() => onSelect(product.slug || product.id)}
       className="group bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-sm hover:shadow-md hover:border-amber-700/30 transition-all duration-200 flex flex-col cursor-pointer"
     >
       {/* Image Container */}

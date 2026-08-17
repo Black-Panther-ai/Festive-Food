@@ -45,10 +45,31 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navi
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/products/${slug}`);
+        const cleanSlug = encodeURIComponent(decodeURIComponent(slug || ''));
+        let res = await fetch(`/api/products/${cleanSlug}`);
+        
         if (!res.ok) {
+          // Fallback: fetch all products and search locally
+          const allRes = await fetch('/api/products');
+          if (allRes.ok) {
+            const allJson = await allRes.json();
+            const decoded = decodeURIComponent(slug || '').toLowerCase().trim();
+            const matched = (allJson.data || []).find((p: any) =>
+              (p.slug && p.slug.toLowerCase().trim() === decoded) ||
+              (p.id && p.id.toLowerCase().trim() === decoded) ||
+              (p.name && p.name.toLowerCase().trim() === decoded) ||
+              (p.name && p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === decoded) ||
+              (p.slug && decoded.includes(p.slug.toLowerCase().trim()))
+            );
+            if (matched) {
+              setProduct(matched);
+              setReviews(matched.reviews || []);
+              return;
+            }
+          }
           throw new Error('Product not found.');
         }
+
         const data = await res.json();
         setProduct(data.data);
         setReviews(data.data?.reviews || []);
