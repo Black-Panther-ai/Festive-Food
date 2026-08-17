@@ -1,11 +1,11 @@
-import { Category, DeliverySlot, Product, Seller } from './types.js';
+import { Category, Product } from '../types';
 
-export const INITIAL_CATEGORIES: Category[] = [
+export const DEFAULT_CATEGORIES: Category[] = [
   {
     id: 'cat-sweets',
     name: 'Sweets',
     slug: 'sweets',
-    description: 'Authentic Uttar Pradesh traditional sweets made with pure ghee and mawa.',
+    description: 'Authentic Uttar Pradesh traditional sweets made with pure desi ghee and mawa.',
     createdAt: new Date('2026-01-01').toISOString(),
   },
   {
@@ -31,52 +31,7 @@ export const INITIAL_CATEGORIES: Category[] = [
   },
 ];
 
-export const INITIAL_SELLERS: Seller[] = [
-  {
-    id: 'seller-shukla',
-    name: 'Shukla Mishthan & Halwai Heritage',
-    contactPerson: 'Rameshwar Shukla',
-    phone: '6397353920',
-    city: 'Kanpur',
-    area: 'Birhana Road',
-    fssaiNumber: '12722001000452',
-    verificationStatus: 'VERIFIED',
-    status: 'ACTIVE',
-    notes: 'Specializes in traditional Gujiya and pure desi ghee mathri batches.',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-  {
-    id: 'seller-awadh',
-    name: 'Awadh Heritage Sweet Crafters',
-    contactPerson: 'Suresh Chandra Gupta',
-    phone: '9415098765',
-    city: 'Lucknow',
-    area: 'Aminabad',
-    fssaiNumber: '12723002000891',
-    verificationStatus: 'VERIFIED',
-    status: 'ACTIVE',
-    notes: 'Famous for flaky Balushahi and Besan Laddoo.',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-  {
-    id: 'seller-banaras',
-    name: 'Kashi Rasoi & Halwai Collective',
-    contactPerson: 'Deepak Upadhyay',
-    phone: '9792044321',
-    city: 'Varanasi',
-    area: 'Godowlia',
-    fssaiNumber: '12724003001123',
-    verificationStatus: 'VERIFIED',
-    status: 'ACTIVE',
-    notes: 'Masters of Thekua, Lal Peda, and festive Namak Para.',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-];
-
-export const INITIAL_PRODUCTS: Product[] = [
+export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'prod-gujiya',
     name: 'Traditional Mawa Gujiya',
@@ -252,68 +207,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     ingredients: 'Refined Wheat Flour, Yellow Moong Dal, Asafoetida (Hing), Fennel Seeds, Dried Mango Powder (Amchur), Coriander Powder, Red Chilli, Pure Groundnut Oil, Rock Salt.',
     allergens: 'Contains Gluten.',
     shelfLife: '12 days in an airtight container.',
-    storageInstructions: 'Store in an airtight container. Can be lightly warmed in an oven/tawa before serving.',
+    storageInstructions: 'Store in an airtight container away from moisture.',
     status: 'ACTIVE',
     availableQuantity: 40,
     preOrderDeadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    deliveryDates: 'Fresh Batch Every Saturday',
+    deliveryDates: 'Fresh Weekly Batch',
     city: 'Kanpur',
-    createdAt: new Date('2026-01-09').toISOString(),
-    updatedAt: new Date('2026-01-09').toISOString(),
-  },
-];
-
-export const INITIAL_DELIVERY_SLOTS: DeliverySlot[] = [
-  {
-    id: 'slot-1',
-    city: 'Kanpur',
-    date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    startTime: '10:00 AM',
-    endTime: '02:00 PM',
-    pincodes: '208001,208002,208005,208012,208024,208027',
-    capacity: 50,
-    reservedCapacity: 4,
-    status: 'ACTIVE',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-  {
-    id: 'slot-2',
-    city: 'Kanpur',
-    date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    startTime: '03:00 PM',
-    endTime: '07:00 PM',
-    pincodes: '208001,208002,208005,208012,208024,208027',
-    capacity: 50,
-    reservedCapacity: 2,
-    status: 'ACTIVE',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-  {
-    id: 'slot-3',
-    city: 'Lucknow',
-    date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    startTime: '11:00 AM',
-    endTime: '03:00 PM',
-    pincodes: '226001,226002,226010,226016,226024',
-    capacity: 40,
-    reservedCapacity: 3,
-    status: 'ACTIVE',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
-  },
-  {
-    id: 'slot-4',
-    city: 'Varanasi',
-    date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    startTime: '10:00 AM',
-    endTime: '02:00 PM',
-    pincodes: '221001,221002,221005,221010',
-    capacity: 35,
-    reservedCapacity: 1,
-    status: 'ACTIVE',
-    createdAt: new Date('2026-01-01').toISOString(),
-    updatedAt: new Date('2026-01-01').toISOString(),
+    createdAt: new Date('2026-01-08').toISOString(),
+    updatedAt: new Date('2026-01-08').toISOString(),
   },
 ];

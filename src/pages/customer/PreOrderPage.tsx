@@ -150,20 +150,45 @@ export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
         })),
       };
 
-      const res = await fetch('/api/preorders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let createdOrder: any = null;
+      try {
+        const res = await fetch('/api/preorders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      const data = await res.json();
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            createdOrder = data.data;
+          }
+        }
+      } catch {
+        // Backend not available (GitHub Pages)
+      }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to submit pre-order.');
+      if (!createdOrder) {
+        // Local Order generation
+        const orderNumber = `UP-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+        createdOrder = {
+          id: `order-${Date.now()}`,
+          orderNumber,
+          ...payload,
+          status: 'PENDING_CONFIRMATION',
+          totalAmount: totalAmount,
+          createdAt: new Date().toISOString(),
+        };
+
+        try {
+          const existing = JSON.parse(localStorage.getItem('up_festive_orders_v2') || '[]');
+          localStorage.setItem('up_festive_orders_v2', JSON.stringify([createdOrder, ...existing]));
+        } catch {
+          // ignore
+        }
       }
 
       // Pre-order created successfully
-      const createdOrder = data.data;
       clearCart();
       navigate(`/order-success/${createdOrder.orderNumber}`);
     } catch (err: any) {
@@ -450,8 +475,11 @@ export const PreOrderPage: React.FC<PreOrderPageProps> = ({ navigate }) => {
                     className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-stone-50 border border-stone-100"
                   >
                     <img
-                      src={product.imageUrl}
+                      src={product.imageUrl || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80'}
                       alt={product.name}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80';
+                      }}
                       className="w-12 h-12 object-cover rounded-lg shrink-0"
                     />
                     <div className="flex-1 min-w-0">

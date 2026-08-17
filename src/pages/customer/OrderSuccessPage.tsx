@@ -56,10 +56,22 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ orderNumber,
           const data = await res.json();
           if (data.success && data.data) {
             setOrder(data.data);
+            return;
           }
         }
       } catch (err) {
-        console.error('Failed to load order success data:', err);
+        console.error('Failed to load order success data from API:', err);
+      }
+
+      // Check local storage for GitHub Pages
+      try {
+        const existing = JSON.parse(localStorage.getItem('up_festive_orders_v2') || '[]');
+        const found = existing.find((o: any) => o.orderNumber === orderNumber || o.id === orderNumber);
+        if (found) {
+          setOrder(found);
+        }
+      } catch {
+        // ignore
       } finally {
         setIsLoading(false);
       }

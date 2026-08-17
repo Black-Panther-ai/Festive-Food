@@ -18,21 +18,23 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { productService } from '../../services/productService';
 import { Category, Product, ProductStatus } from '../../types';
+import { CLOUDINARY_CONFIG, uploadDirectToCloudinary } from '../../utils/cloudinary';
 
 interface AdminProductsPageProps {
   navigate: (path: string) => void;
 }
 
 const PRESET_DISH_IMAGES = [
-  { name: 'Traditional Mawa Gujiya', url: '/images/products/mawa-gujiya.jpg' },
-  { name: 'Shuddh Desi Ghee Besan Laddoo', url: '/images/products/besan-laddoo.jpg' },
-  { name: 'Sweet Crunchy Shakar Para', url: '/images/products/sweet-shakarpara.jpg' },
-  { name: 'Halwai-Style Khasta Mathri', url: '/images/products/khasta-mathri.jpg' },
-  { name: 'Crispy Ajwain Namak Para', url: '/images/products/crispy-namakpara.jpg' },
-  { name: 'Purvanchal Gur Thekua', url: '/images/products/purvanchal-thekua.jpg' },
-  { name: 'Awadhi Shahi Balushahi', url: '/images/products/awadhi-balushahi.jpg' },
-  { name: 'Spiced Khasta Moong Dal Kachori', url: '/images/products/khasta-kachori.jpg' },
+  { name: 'Traditional Mawa Gujiya', url: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Shuddh Desi Ghee Besan Laddoo', url: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Sweet Crunchy Shakar Para', url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Halwai-Style Khasta Mathri', url: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Crispy Ajwain Namak Para', url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Purvanchal Gur Thekua', url: 'https://images.unsplash.com/photo-1605197584547-c93ed1a73373?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Awadhi Shahi Balushahi', url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80' },
+  { name: 'Spiced Khasta Moong Dal Kachori', url: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80' },
 ];
 
 export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }) => {
@@ -60,7 +62,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const [unit, setUnit] = useState('500g');
   const [weight, setWeight] = useState('500g (~12-14 pcs)');
   const [approxPieces, setApproxPieces] = useState('12-14 pcs');
-  const [imageUrl, setImageUrl] = useState('/images/products/mawa-gujiya.jpg');
+  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80');
   const [ingredients, setIngredients] = useState('');
   const [allergens, setAllergens] = useState('');
   const [shelfLife, setShelfLife] = useState('15 days');
@@ -70,34 +72,17 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const [status, setStatus] = useState<ProductStatus>('ACTIVE');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [cloudinaryStatus, setCloudinaryStatus] = useState<{ configured: boolean; cloudName?: string | null }>({
-    configured: false,
+    configured: true,
+    cloudName: CLOUDINARY_CONFIG.cloudName,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const checkCloudinaryStatus = async () => {
-    try {
-      const res = await fetch('/api/upload/status');
-      const json = await res.json();
-      if (json.success) {
-        setCloudinaryStatus({
-          configured: json.cloudinaryConfigured,
-          cloudName: json.cloudName,
-        });
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/products');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setProducts(json.data);
-      }
+      const data = await productService.getProducts();
+      setProducts(data);
     } catch (err) {
       console.error('Failed to fetch products', err);
     } finally {
@@ -107,13 +92,10 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setCategories(json.data);
-        if (json.data.length > 0 && !categoryId) {
-          setCategoryId(json.data[0].id);
-        }
+      const data = await productService.getCategories();
+      setCategories(data);
+      if (data.length > 0 && !categoryId) {
+        setCategoryId(data[0].id);
       }
     } catch (err) {
       console.error('Failed to fetch categories', err);
@@ -123,7 +105,6 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-    checkCloudinaryStatus();
   }, []);
 
   const openAddModal = () => {
@@ -135,7 +116,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
     setUnit('500g');
     setWeight('500g (~12-14 pcs)');
     setApproxPieces('12-14 pcs');
-    setImageUrl('/images/products/mawa-gujiya.jpg');
+    setImageUrl('https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80');
     setIngredients('Pure Desi Ghee, Khoya/Mawa, Cardamom, Dry Fruits.');
     setAllergens('Contains Dairy and Gluten.');
     setShelfLife('15 days');
@@ -168,14 +149,13 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
     setIsModalOpen(true);
   };
 
-  // Handle Gallery / File Upload & Cloudinary storage
+  // Direct Cloudinary Upload from Gallery / Camera / File
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (under 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg('Image file size must be under 10MB.');
+    if (file.size > 12 * 1024 * 1024) {
+      setErrorMsg('Image file size must be under 12MB.');
       return;
     }
 
@@ -183,6 +163,16 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
       setUploadingImage(true);
       setErrorMsg(null);
 
+      // 1. Direct Cloudinary Signed Upload
+      const cloudRes = await uploadDirectToCloudinary(file);
+      if (cloudRes.success && cloudRes.url) {
+        setImageUrl(cloudRes.url);
+        setSuccessMsg(`Image uploaded & stored permanently on Cloudinary CDN (${CLOUDINARY_CONFIG.cloudName})!`);
+        setTimeout(() => setSuccessMsg(null), 5000);
+        return;
+      }
+
+      // 2. Fallback: try server API if running
       const reader = new FileReader();
       reader.onload = async (uploadEvent) => {
         const base64Data = uploadEvent.target?.result as string;
@@ -191,7 +181,6 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
           return;
         }
 
-        // Upload to server endpoint which syncs to Cloudinary
         try {
           const res = await fetch('/api/admin/upload', {
             method: 'POST',
@@ -201,27 +190,21 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
             },
             body: JSON.stringify({
               image: base64Data,
-              folder: 'up_festive_foods/products',
+              folder: CLOUDINARY_CONFIG.folder,
             }),
           });
 
           const json = await res.json();
           if (json.success && json.url) {
             setImageUrl(json.url);
-            if (json.provider === 'cloudinary') {
-              setSuccessMsg('Image uploaded to Cloudinary CDN successfully!');
-            } else {
-              setSuccessMsg('Image loaded from device gallery!');
-            }
+            setSuccessMsg('Image uploaded to Cloudinary successfully!');
             setTimeout(() => setSuccessMsg(null), 4000);
           } else {
-            // Fallback to local base64 preview
             setImageUrl(base64Data);
-            setSuccessMsg('Image loaded from local device.');
+            setSuccessMsg('Image loaded from device.');
             setTimeout(() => setSuccessMsg(null), 3000);
           }
-        } catch (uploadErr: any) {
-          console.warn('Direct upload API failed, falling back to base64', uploadErr);
+        } catch {
           setImageUrl(base64Data);
           setSuccessMsg('Image loaded from gallery.');
           setTimeout(() => setSuccessMsg(null), 3000);
@@ -229,10 +212,10 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
           setUploadingImage(false);
         }
       };
-
       reader.readAsDataURL(file);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to read image file.');
+      setErrorMsg(err.message || 'Failed to upload image to Cloudinary.');
+    } finally {
       setUploadingImage(false);
     }
   };
@@ -256,7 +239,8 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
       setSaving(true);
       setErrorMsg(null);
 
-      const payload = {
+      const payload: Partial<Product> = {
+        ...(editingProduct ? { id: editingProduct.id } : {}),
         name: name.trim(),
         description: description.trim(),
         categoryId,
@@ -264,7 +248,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
         unit: unit.trim(),
         weight: weight.trim(),
         approxPieces: approxPieces.trim() || null,
-        imageUrl: imageUrl.trim() || '/images/products/mawa-gujiya.jpg',
+        imageUrl: imageUrl.trim() || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80',
         ingredients: ingredients.trim(),
         allergens: allergens.trim(),
         shelfLife: shelfLife.trim(),
@@ -274,24 +258,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
         status,
       };
 
-      const url = editingProduct
-        ? `/api/admin/products/${editingProduct.id}`
-        : '/api/admin/products';
-      const method = editingProduct ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to save product.');
-      }
+      await productService.saveProduct(payload, token);
 
       setSuccessMsg(editingProduct ? 'Product updated successfully!' : 'New festive dish added successfully!');
       setTimeout(() => setSuccessMsg(null), 4000);
@@ -307,17 +274,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const handleDeleteProduct = async (id: string) => {
     try {
       setSaving(true);
-      const res = await fetch(`/api/admin/products/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to delete product.');
-      }
-
+      await productService.deleteProduct(id, token);
       setSuccessMsg('Product item deleted successfully.');
       setTimeout(() => setSuccessMsg(null), 4000);
       setDeleteConfirmProduct(null);
@@ -452,11 +409,11 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                 {/* Image & Status Tag */}
                 <div className="relative aspect-4/3 bg-stone-100 overflow-hidden">
                   <img
-                    src={prod.imageUrl}
+                    src={prod.imageUrl || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80'}
                     alt={prod.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/images/products/mawa-gujiya.jpg';
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80';
                     }}
                   />
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">

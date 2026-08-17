@@ -20,6 +20,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { ProductCard } from '../../components/customer/ProductCard';
 import { useCart } from '../../context/CartContext';
+import { productService } from '../../services/productService';
 import { Product, Review } from '../../types';
 
 interface HomePageProps {
@@ -37,21 +38,18 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [prodRes, revRes] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/reviews'),
-        ]);
+        const list = await productService.getProducts();
+        setPopularProducts(list.slice(0, 4));
+        setThisWeekProducts(list.filter((p) => p.status === 'ACTIVE').slice(0, 6));
 
-        if (prodRes.ok) {
-          const pData = await prodRes.json();
-          const list: Product[] = pData.data || [];
-          setPopularProducts(list.slice(0, 4));
-          setThisWeekProducts(list.filter((p) => p.status === 'ACTIVE').slice(0, 6));
-        }
-
-        if (revRes.ok) {
-          const rData = await revRes.json();
-          setReviews(rData.data || []);
+        try {
+          const revRes = await fetch('/api/reviews');
+          if (revRes.ok) {
+            const rData = await revRes.json();
+            setReviews(rData.data || []);
+          }
+        } catch {
+          // ignore
         }
       } catch (err) {
         console.error('Failed to load home page products:', err);
@@ -179,6 +177,9 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                   <img
                     src="https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80"
                     alt="Traditional UP Festival Gujiya"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80';
+                    }}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent flex flex-col justify-end p-5 text-white">

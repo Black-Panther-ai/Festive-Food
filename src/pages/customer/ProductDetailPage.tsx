@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useCart } from '../../context/CartContext';
+import { productService } from '../../services/productService';
 import { Product, Review } from '../../types';
 
 interface ProductDetailPageProps {
@@ -45,34 +46,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navi
       setIsLoading(true);
       setError(null);
       try {
-        const cleanSlug = encodeURIComponent(decodeURIComponent(slug || ''));
-        let res = await fetch(`/api/products/${cleanSlug}`);
-        
-        if (!res.ok) {
-          // Fallback: fetch all products and search locally
-          const allRes = await fetch('/api/products');
-          if (allRes.ok) {
-            const allJson = await allRes.json();
-            const decoded = decodeURIComponent(slug || '').toLowerCase().trim();
-            const matched = (allJson.data || []).find((p: any) =>
-              (p.slug && p.slug.toLowerCase().trim() === decoded) ||
-              (p.id && p.id.toLowerCase().trim() === decoded) ||
-              (p.name && p.name.toLowerCase().trim() === decoded) ||
-              (p.name && p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === decoded) ||
-              (p.slug && decoded.includes(p.slug.toLowerCase().trim()))
-            );
-            if (matched) {
-              setProduct(matched);
-              setReviews(matched.reviews || []);
-              return;
-            }
-          }
+        const matched = await productService.getProductBySlugOrId(slug);
+        if (matched) {
+          setProduct(matched);
+          setReviews(matched.reviews || []);
+        } else {
           throw new Error('Product not found.');
         }
-
-        const data = await res.json();
-        setProduct(data.data);
-        setReviews(data.data?.reviews || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load product details.');
       } finally {
@@ -170,8 +150,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navi
         <div className="lg:col-span-6 space-y-4">
           <div className="relative aspect-4/3 sm:aspect-1/1 w-full bg-stone-100 rounded-3xl overflow-hidden border border-stone-200 shadow-sm">
             <img
-              src={product.imageUrl}
+              src={product.imageUrl || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80'}
               alt={product.name}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80';
+              }}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />

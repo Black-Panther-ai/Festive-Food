@@ -2,6 +2,7 @@ import { Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } fro
 import React, { useEffect, useState } from 'react';
 import { ProductCard } from '../../components/customer/ProductCard';
 import { useCart } from '../../context/CartContext';
+import { productService } from '../../services/productService';
 import { Category, Product } from '../../types';
 
 interface ProductsPageProps {
@@ -18,7 +19,8 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   initialCity = 'all',
 }) => {
   const { addItem } = useCart();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [selectedCity, setSelectedCity] = useState<string>(initialCity);
@@ -37,34 +39,12 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     const fetchCatalog = async () => {
       setIsLoading(true);
       try {
-        const queryParams = new URLSearchParams();
-        if (selectedCategory && selectedCategory !== 'all') {
-          queryParams.append('category', selectedCategory);
-        }
-        if (selectedCity && selectedCity !== 'all') {
-          queryParams.append('city', selectedCity);
-        }
-        if (selectedAvailability && selectedAvailability !== 'all') {
-          queryParams.append('availability', selectedAvailability);
-        }
-        if (search.trim()) {
-          queryParams.append('search', search.trim());
-        }
-
-        const [prodRes, catRes] = await Promise.all([
-          fetch(`/api/products?${queryParams.toString()}`),
-          fetch('/api/categories'),
+        const [prodList, catList] = await Promise.all([
+          productService.getProducts(),
+          productService.getCategories(),
         ]);
-
-        if (prodRes.ok) {
-          const data = await prodRes.json();
-          setProducts(data.data || []);
-        }
-
-        if (catRes.ok) {
-          const cData = await catRes.json();
-          setCategories(cData.data || []);
-        }
+        setAllProducts(prodList);
+        setCategories(catList);
       } catch (err) {
         console.error('Failed to load products:', err);
       } finally {
@@ -73,7 +53,38 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     };
 
     fetchCatalog();
-  }, [selectedCategory, selectedCity, selectedAvailability, search]);
+  }, []);
+
+  // Filter products client-side
+  useEffect(() => {
+    let result = [...allProducts];
+
+    if (selectedCategory && selectedCategory !== 'all') {
+      result = result.filter((p) => p.categoryId === selectedCategory);
+    }
+
+    if (selectedCity && selectedCity !== 'all') {
+      result = result.filter(
+        (p) => (p.city || '').toLowerCase() === selectedCity.toLowerCase()
+      );
+    }
+
+    if (selectedAvailability && selectedAvailability !== 'all') {
+      result = result.filter((p) => p.status === selectedAvailability);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.ingredients && p.ingredients.toLowerCase().includes(q))
+      );
+    }
+
+    setFilteredProducts(result);
+  }, [allProducts, selectedCategory, selectedCity, selectedAvailability, search]);
 
   const resetFilters = () => {
     setSelectedCategory('all');
@@ -209,7 +220,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
             <div key={n} className="h-80 bg-stone-100 rounded-2xl animate-pulse" />
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : filteredProducts.length === 0 ? (
         <div className="bg-stone-50 border border-stone-200 rounded-2xl p-12 text-center max-w-lg mx-auto">
           <Filter className="w-10 h-10 text-stone-400 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-stone-800 font-serif">No Traditional Snacks Found</h3>
@@ -226,10 +237,10 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       ) : (
         <div>
           <div className="text-xs text-stone-500 mb-4 font-medium">
-            Showing <strong>{products.length}</strong> festive items ready for demand pre-order
+            Showing <strong>{filteredProducts.length}</strong> festive items ready for demand pre-order
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}

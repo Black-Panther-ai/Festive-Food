@@ -24,6 +24,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onP
     }
   };
 
+  const fallbackImage = 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80';
+
   return (
     <div
       id={`product-card-${product.id}`}
@@ -33,8 +35,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onP
       {/* Image Container */}
       <div className="relative aspect-4/3 w-full bg-stone-100 overflow-hidden">
         <img
-          src={product.imageUrl}
+          src={product.imageUrl || fallbackImage}
           alt={product.name}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = fallbackImage;
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
           referrerPolicy="no-referrer"
