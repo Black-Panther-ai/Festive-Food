@@ -20,8 +20,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Category, Product, ProductStatus } from '../../types';
 
-const API_URL = 'https://festive-food.onrender.com';
-
 interface AdminProductsPageProps {
   navigate: (path: string) => void;
 }
@@ -70,13 +68,32 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const [availableQuantity, setAvailableQuantity] = useState<number | ''>(50);
   const [city, setCity] = useState('Kanpur');
   const [status, setStatus] = useState<ProductStatus>('ACTIVE');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [cloudinaryStatus, setCloudinaryStatus] = useState<{ configured: boolean; cloudName?: string | null }>({
+    configured: false,
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const checkCloudinaryStatus = async () => {
+    try {
+      const res = await fetch('/api/upload/status');
+      const json = await res.json();
+      if (json.success) {
+        setCloudinaryStatus({
+          configured: json.cloudinaryConfigured,
+          cloudName: json.cloudName,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/products`);
+      const res = await fetch('/api/products');
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setProducts(json.data);
@@ -90,7 +107,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/categories`);
+      const res = await fetch('/api/categories');
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setCategories(json.data);
@@ -106,6 +123,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    checkCloudinaryStatus();
   }, []);
 
   const openAddModal = () => {
@@ -150,26 +168,72 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
     setIsModalOpen(true);
   };
 
-  // Handle Gallery Upload from User's Device
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Gallery / File Upload & Cloudinary storage
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (under 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMsg('Image file size must be under 5MB.');
-        return;
-      }
+    if (!file) return;
+
+    // Validate file size (under 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg('Image file size must be under 10MB.');
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      setErrorMsg(null);
 
       const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
+      reader.onload = async (uploadEvent) => {
         const base64Data = uploadEvent.target?.result as string;
-        if (base64Data) {
+        if (!base64Data) {
+          setUploadingImage(false);
+          return;
+        }
+
+        // Upload to server endpoint which syncs to Cloudinary
+        try {
+          const res = await fetch('/api/admin/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              image: base64Data,
+              folder: 'up_festive_foods/products',
+            }),
+          });
+
+          const json = await res.json();
+          if (json.success && json.url) {
+            setImageUrl(json.url);
+            if (json.provider === 'cloudinary') {
+              setSuccessMsg('Image uploaded to Cloudinary CDN successfully!');
+            } else {
+              setSuccessMsg('Image loaded from device gallery!');
+            }
+            setTimeout(() => setSuccessMsg(null), 4000);
+          } else {
+            // Fallback to local base64 preview
+            setImageUrl(base64Data);
+            setSuccessMsg('Image loaded from local device.');
+            setTimeout(() => setSuccessMsg(null), 3000);
+          }
+        } catch (uploadErr: any) {
+          console.warn('Direct upload API failed, falling back to base64', uploadErr);
           setImageUrl(base64Data);
-          setSuccessMsg('Image loaded from device gallery!');
+          setSuccessMsg('Image loaded from gallery.');
           setTimeout(() => setSuccessMsg(null), 3000);
+        } finally {
+          setUploadingImage(false);
         }
       };
+
       reader.readAsDataURL(file);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to read image file.');
+      setUploadingImage(false);
     }
   };
 
@@ -211,8 +275,8 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
       };
 
       const url = editingProduct
-        ? `${API_URL}/api/admin/products/${editingProduct.id}`
-        : `${API_URL}/api/admin/products`;
+        ? `/api/admin/products/${editingProduct.id}`
+        : '/api/admin/products';
       const method = editingProduct ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -243,7 +307,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
   const handleDeleteProduct = async (id: string) => {
     try {
       setSaving(true);
-      const res = await fetch(`${API_URL}/api/admin/products/${id}`, {
+      const res = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -344,9 +408,8 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                 {c.name}
               </option>
             ))}
-          
           </select>
-         
+
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -500,7 +563,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
               {/* Basic Details */}
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block font-semibold text-stone-700 mb-1">
                     Dish Name *
@@ -534,7 +597,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
 
                 <div>
                   <label className="block font-semibold text-stone-700 mb-1">
-                    Price (INR 鈧�) *
+                    Price (INR ₹) *
                   </label>
                   <input
                     type="number"
@@ -574,15 +637,27 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                 </div>
               </div>
 
-              {/* Product Image Section with Gallery Upload */}
+              {/* Product Image Section with Cloudinary & Gallery Upload */}
               <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
-                <label className="block font-bold text-stone-900 font-serif">
-                  Product Image (Gallery Upload or Authentic Presets)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-stone-900 font-serif">
+                    Product Image (Cloudinary CDN & Local Gallery)
+                  </label>
+                  {cloudinaryStatus.configured ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-mono">
+                      <Sparkles className="w-3 h-3" />
+                      Cloudinary Active ({cloudinaryStatus.cloudName})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-500 bg-stone-200/80 px-2 py-0.5 rounded-full font-mono">
+                      Local / Presets Mode
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   {/* Image Preview */}
-                  <div className="w-28 h-24 rounded-2xl bg-white border border-stone-200 overflow-hidden shrink-0 shadow-inner flex items-center justify-center">
+                  <div className="w-28 h-24 rounded-2xl bg-white border border-stone-200 overflow-hidden shrink-0 shadow-inner flex items-center justify-center relative">
                     {imageUrl ? (
                       <img
                         src={imageUrl}
@@ -595,9 +670,16 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                     ) : (
                       <ImageIcon className="w-8 h-8 text-stone-300" />
                     )}
+
+                    {uploadingImage && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white">
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <span className="text-[9px] font-bold mt-1">Uploading...</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Upload from Gallery Button */}
+                  {/* Upload from Gallery Button & Cloudinary Direct Input */}
                   <div className="flex-1 space-y-2 w-full">
                     <input
                       type="file"
@@ -610,17 +692,29 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        disabled={uploadingImage}
                         onClick={() => fileInputRef.current?.click()}
-                        className="py-2 px-3 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-semibold flex items-center gap-1.5 transition text-xs shadow-xs"
+                        className="py-2 px-3 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-semibold flex items-center gap-1.5 transition text-xs shadow-xs disabled:opacity-50"
                       >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Choose Image from Gallery / Photos</span>
+                        {uploadingImage ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>{uploadingImage ? 'Uploading Image to Cloudinary...' : 'Upload Image from Gallery / File'}</span>
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-stone-500">
-                      Pick any photo from your local files or gallery. It will be uploaded and applied immediately.
-                    </p>
+                    {/* Direct Image URL input */}
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        placeholder="Or paste Cloudinary URL (https://res.cloudinary.com/...)"
+                        className="w-full p-2 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-600 text-[11px] font-mono"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -666,7 +760,7 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
               {/* Ingredients & Allergens */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                     <label className="block font-semibold text-stone-700 mb-1">
+                  <label className="block font-semibold text-stone-700 mb-1">
                     Ingredients
                   </label>
                   <input
@@ -808,4 +902,3 @@ export const AdminProductsPage: React.FC<AdminProductsPageProps> = ({ navigate }
     </div>
   );
 };
-              

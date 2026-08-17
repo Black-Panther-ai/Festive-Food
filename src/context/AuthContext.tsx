@@ -12,15 +12,8 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  loginWithClerk: (
-    email: string,
-    name?: string,
-    clerkUserId?: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithClerk: (email: string, name?: string, clerkUserId?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -29,16 +22,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const TOKEN_KEY = 'up_admin_token';
 const USER_KEY = 'up_admin_user';
 
-// Production backend hosted on Render
-const API_URL = 'https://festive-food.onrender.com';
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem(TOKEN_KEY)
-  );
-
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [user, setUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem(USER_KEY);
@@ -47,7 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     }
   });
-
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -57,29 +41,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
         return;
       }
-
       try {
-        const res = await fetch(`${API_URL}/api/admin/me`, {
+        const res = await fetch('/api/admin/me', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-
         if (res.ok) {
           const data = await res.json();
-
           if (data.user) {
             setUser(data.user);
-            localStorage.setItem(
-              USER_KEY,
-              JSON.stringify(data.user)
-            );
+            localStorage.setItem(USER_KEY, JSON.stringify(data.user));
           }
         } else {
           // Token invalid or expired
           setToken(null);
           setUser(null);
-
           localStorage.removeItem(TOKEN_KEY);
           localStorage.removeItem(USER_KEY);
         }
@@ -93,116 +70,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     verifySession();
   }, [token]);
 
-  const loginWithClerk = async (
-    email: string,
-    name?: string,
-    clerkUserId?: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  const loginWithClerk = async (email: string, name?: string, clerkUserId?: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/clerk-auth`, {
+      const res = await fetch('/api/admin/clerk-auth', {
         method: 'POST',
-
         headers: {
           'Content-Type': 'application/json',
         },
-
-        body: JSON.stringify({
-          email,
-          name,
-          clerkUserId,
-        }),
+        body: JSON.stringify({ email, name, clerkUserId }),
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success) {
-        return {
-          success: false,
-          error:
-            data.error ||
-            'Clerk admin authorization failed.',
-        };
+        return { success: false, error: data.error || 'Clerk admin authorization failed.' };
       }
 
       setToken(data.token);
       setUser(data.user);
-
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(
-        USER_KEY,
-        JSON.stringify(data.user)
-      );
-
-      return {
-        success: true,
-      };
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      return { success: true };
     } catch {
-      return {
-        success: false,
-        error: 'Network error verifying admin status.',
-      };
+      return { success: false, error: 'Network error verifying admin status.' };
     }
   };
 
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/login`, {
+      const res = await fetch('/api/admin/login', {
         method: 'POST',
-
         headers: {
           'Content-Type': 'application/json',
         },
-
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success) {
-        return {
-          success: false,
-          error: data.error || 'Login failed.',
-        };
+        return { success: false, error: data.error || 'Login failed.' };
       }
 
       setToken(data.token);
       setUser(data.user);
-
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(
-        USER_KEY,
-        JSON.stringify(data.user)
-      );
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
-      return {
-        success: true,
-      };
-    } catch {
-      return {
-        success: false,
-        error: 'Network error during login.',
-      };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: 'Network error during login.' };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/api/admin/logout`, {
-        method: 'POST',
-      });
+      await fetch('/api/admin/logout', { method: 'POST' });
     } catch {
-      // Ignore logout network errors
+      // ignore
     }
-
     setToken(null);
     setUser(null);
-
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   };
@@ -226,12 +152,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-
   if (!context) {
-    throw new Error(
-      'useAuth must be used within an AuthProvider'
-    );
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-
   return context;
 };

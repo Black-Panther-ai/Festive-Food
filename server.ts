@@ -11,6 +11,7 @@ import { adminSellersRouter } from './server/api/adminSellers.js';
 import { adminSlotsRouter } from './server/api/adminSlots.js';
 import { preordersRouter } from './server/api/preorders.js';
 import { productsRouter } from './server/api/products.js';
+import { uploadRouter } from './server/api/upload.js';
 
 async function startServer() {
   const app = express();
@@ -47,6 +48,7 @@ async function startServer() {
   // Mount API Routers
   app.use('/api', productsRouter);
   app.use('/api', preordersRouter);
+  app.use('/api', uploadRouter);
   app.use('/api', adminAuthRouter);
   app.use('/api', adminOrdersRouter);
   app.use('/api', adminSellersRouter);

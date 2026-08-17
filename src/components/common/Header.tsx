@@ -5,6 +5,7 @@ import {
   Menu,
   Phone,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Truck,
@@ -120,6 +121,15 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
               <Truck className="w-4 h-4 text-amber-600" />
               Track Order
             </button>
+            <button
+              id="nav-admin-btn"
+              onClick={() => navigate('/admin')}
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-amber-100 text-stone-700 hover:text-amber-900 border border-stone-200 transition flex items-center gap-1"
+              title="Access Admin Operations Console"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+              <span>Admin</span>
+            </button>
           </nav>
 
           {/* Right Action Area */}
@@ -234,6 +244,17 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
             >
               <User className="w-4 h-4 text-amber-700" />
               <span>{isSignedIn ? 'My Account & Pre-Orders' : 'Sign In / My Account'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                navigate('/admin');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 text-stone-700 hover:bg-stone-100 border-t border-stone-200/60 mt-1"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-700" />
+              <span>Admin Operations Console</span>
             </button>
           </div>
         </div>
