@@ -1,0 +1,6 @@
+{
+  "name": "UP Festive Foods",
+  "description": "Demand validation marketplace and pre-order platform for traditional Uttar Pradesh festival snacks and sweets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

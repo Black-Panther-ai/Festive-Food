@@ -1,0 +1,303 @@
+// UP Festive Foods - Prisma Database Schema
+// Optimized for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  SELLER
+  CUSTOMER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  SOLD_OUT
+}
+
+enum SlotStatus {
+  ACTIVE
+  INACTIVE
+  FULL
+}
+
+enum PaymentStatus {
+  NOT_APPLICABLE  // ₹0 Pre-order MVP
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+enum OrderStatus {
+  NEW
+  CONTACTED
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum CommunicationChannel {
+  WHATSAPP
+  PHONE_CALL
+  SMS
+  EMAIL
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  phone        String?   @unique
+  email        String    @unique
+  role         Role      @default(ADMIN)
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  addresses    Address[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Address {
+  id                   String     @id @default(uuid())
+  userId               String?
+  user                 User?      @relation(fields: [userId], references: [id])
+  customerName         String
+  customerPhone        String
+  addressLine          String
+  area                 String
+  city                 String
+  state                String     @default("Uttar Pradesh")
+  pincode              String
+  deliveryInstructions String?
+  createdAt            DateTime   @default(now())
+  preOrders            PreOrder[]
+
+  @@index([pincode])
+  @@index([city])
+  @@index([customerPhone])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  products    Product[]
+}
+
+model Product {
+  id                  String          @id @default(uuid())
+  name                String
+  slug                String          @unique
+  description         String
+  categoryId          String
+  category            Category        @relation(fields: [categoryId], references: [id])
+  price               Float
+  unit                String          @default("500g")
+  weight              String          @default("500g")
+  approxPieces        String?
+  imageUrl            String
+  ingredients         String
+  allergens           String?
+  shelfLife           String
+  storageInstructions String
+  status              ProductStatus   @default(ACTIVE)
+  availableQuantity   Int             @default(50)
+  preOrderDeadline    DateTime
+  deliveryDates       String          // Comma-separated or JSON list of target delivery dates
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  sellerProducts      SellerProduct[]
+  orderItems          PreOrderItem[]
+  reviews             Review[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Seller {
+  id                 String             @id @default(uuid())
+  name               String
+  contactPerson      String?
+  phone              String             @unique
+  city               String             @default("Kanpur")
+  area               String
+  fssaiNumber        String?
+  verificationStatus VerificationStatus @default(PENDING)
+  status             EntityStatus       @default(ACTIVE)
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  sellerProducts     SellerProduct[]
+  orderItems         PreOrderItem[]
+
+  @@index([phone])
+  @@index([city])
+}
+
+model SellerProduct {
+  id                String   @id @default(uuid())
+  sellerId          String
+  seller            Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price             Float
+  capacity          Int      @default(50)
+  availableQuantity Int      @default(50)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([sellerId, productId])
+  @@index([productId])
+  @@index([sellerId])
+}
+
+model DeliverySlot {
+  id               String      @id @default(uuid())
+  city             String      @default("Kanpur")
+  date             DateTime
+  startTime        String      // e.g. "10:00 AM"
+  endTime          String      // e.g. "02:00 PM"
+  pincodes         String      // Comma-separated PIN codes e.g. "208001,208002"
+  capacity         Int         @default(50)
+  reservedCapacity Int         @default(0)
+  status           SlotStatus  @default(ACTIVE)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  preOrders        PreOrder[]
+
+  @@index([date])
+  @@index([city])
+  @@index([status])
+}
+
+model PreOrder {
+  id                 String               @id @default(uuid())
+  orderNumber        String               @unique // Format: UP-XXXXX
+  customerName       String
+  customerPhone      String
+  customerEmail      String?
+  addressId          String
+  address            Address              @relation(fields: [addressId], references: [id])
+  deliverySlotId     String?
+  deliverySlot       DeliverySlot?        @relation(fields: [deliverySlotId], references: [id])
+  requestedDate      DateTime?
+  subtotal           Float
+  deliveryFee        Float                @default(0)
+  total              Float
+  paymentStatus      PaymentStatus        @default(NOT_APPLICABLE) // ₹0 advance
+  confirmationStatus ConfirmationStatus   @default(PENDING)
+  orderStatus        OrderStatus          @default(NEW)
+  internalNotes      String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  items              PreOrderItem[]
+  statusHistory      OrderStatusHistory[]
+  communications     Communication[]
+  reviews            Review[]
+
+  @@index([orderNumber])
+  @@index([customerPhone])
+  @@index([orderStatus])
+  @@index([confirmationStatus])
+  @@index([createdAt])
+  @@index([deliverySlotId])
+}
+
+model PreOrderItem {
+  id         String   @id @default(uuid())
+  preOrderId String
+  preOrder   PreOrder @relation(fields: [preOrderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  sellerId   String?
+  seller     Seller?  @relation(fields: [sellerId], references: [id])
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+
+  @@index([preOrderId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(uuid())
+  preOrderId String
+  preOrder   PreOrder    @relation(fields: [preOrderId], references: [id], onDelete: Cascade)
+  oldStatus  OrderStatus
+  newStatus  OrderStatus
+  changedBy  String      @default("Admin")
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@index([preOrderId])
+  @@index([createdAt])
+}
+
+model Communication {
+  id         String               @id @default(uuid())
+  preOrderId String
+  preOrder   PreOrder             @relation(fields: [preOrderId], references: [id], onDelete: Cascade)
+  channel    CommunicationChannel @default(WHATSAPP)
+  message    String
+  status     String               @default("SENT")
+  createdAt  DateTime             @default(now())
+
+  @@index([preOrderId])
+}
+
+model Review {
+  id           String       @id @default(uuid())
+  preOrderId   String?
+  preOrder     PreOrder?    @relation(fields: [preOrderId], references: [id])
+  productId    String
+  product      Product      @relation(fields: [productId], references: [id])
+  customerName String
+  rating       Int          // 1 to 5
+  comment      String
+  status       ReviewStatus @default(APPROVED)
+  createdAt    DateTime     @default(now())
+
+  @@index([productId])
+  @@index([preOrderId])
+}
