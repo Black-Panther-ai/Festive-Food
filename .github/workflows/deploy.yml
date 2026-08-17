@@ -1,4 +1,4 @@
-name: Deploy Festive-Food to GitHub Pages
+name: Deploy Festive-Food
 
 on:
   push:
@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -32,13 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Build Vite frontend
         run: npx vite build
 
-      - name: Setup GitHub Pages
+      - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload frontend
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
@@ -52,6 +52,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
